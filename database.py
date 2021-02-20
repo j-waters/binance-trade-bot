@@ -210,6 +210,32 @@ class TradeLog:
             send_update(self.trade)
 
 
+class TradeLog:
+    def __init__(self, from_coin: Coin, to_coin: Coin, selling: bool):
+        session: Session
+        with db_session() as session:
+            from_coin = session.merge(from_coin)
+            to_coin = session.merge(to_coin)
+            self.trade = Trade(from_coin, to_coin, selling)
+            session.add(self.trade)
+
+    def set_ordered(self, alt_starting_balance, crypto_starting_balance, alt_trade_amount):
+        session: Session
+        with db_session() as session:
+            trade: Trade = session.merge(self.trade)
+            trade.alt_starting_balance = alt_starting_balance
+            trade.alt_trade_amount = alt_trade_amount
+            trade.crypto_starting_balance = crypto_starting_balance
+            trade.state = TradeState.ORDERED
+
+    def set_complete(self, crypto_trade_amount):
+        session: Session
+        with db_session() as session:
+            trade: Trade = session.merge(self.trade)
+            trade.crypto_trade_amount = crypto_trade_amount
+            trade.state = TradeState.COMPLETE
+
+
 def create_database():
     Base.metadata.create_all(engine)
 
