@@ -17,7 +17,3 @@ COPY --from=builder /install /usr/local
 COPY . /app
 
 WORKDIR /app
-
-EXPOSE 8000
-
-ENTRYPOINT ["./entrypoint.sh"]

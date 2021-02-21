@@ -3,12 +3,23 @@ version: "3"
 services:
   crypto-trading:
     build: .
+    image: binance_trader
     container_name: binance_trader
     volumes:
     - ./user.cfg:/app/user.cfg
     - ./data:/app/data
+    command: python crypto_trading.py
+
+  api:
+    depends_on:
+      - crypto-trading
+    image: binance_trader
+    container_name: binance_trader_api
+    volumes:
+      - ./data:/app/data
     ports:
-    - 8000:8000
+      - 5123:8000
+    command: gunicorn api_server:app -w 1 --threads 1 -b 0.0.0.0:8000
 
   sqlitebrowser:
     image: ghcr.io/linuxserver/sqlitebrowser
