@@ -2,12 +2,16 @@ from itertools import groupby
 from typing import List
 
 from flask import Flask, jsonify
+from flask_cors import CORS
+
 from sqlalchemy.orm import Session
 
+import database
 from database import db_session
 from models import CoinValue, Trade, ScoutHistory
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
 @app.route('/api/value_history')
@@ -59,6 +63,12 @@ def scouting_history():
                 "datetime": scout.datetime,
             } for scout in scouts
         ])
+
+
+@app.route('/api/current_coin')
+def current_coin():
+    coin = database.get_current_coin()
+    return coin.symbol if coin else None
 
 
 if __name__ == '__main__':

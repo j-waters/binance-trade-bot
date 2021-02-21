@@ -3,3 +3,4 @@ sqlalchemy
 schedule
 Flask
 gunicorn
+flask-cors
