@@ -7,6 +7,8 @@ services:
     volumes:
     - ./user.cfg:/app/user.cfg
     - ./data:/app/data
+    ports:
+    - 8000:8000
 
   sqlitebrowser:
     image: ghcr.io/linuxserver/sqlitebrowser

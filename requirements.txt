@@ -2,3 +2,4 @@ python-binance>=0.3
 sqlalchemy
 schedule
 Flask
+gunicorn

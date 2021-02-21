@@ -18,4 +18,6 @@ COPY . /app
 
 WORKDIR /app
 
-CMD ["python", "crypto_trading.py"]
+EXPOSE 8000
+
+ENTRYPOINT ["./entrypoint.sh"]
