@@ -3,12 +3,11 @@ from typing import List
 
 from flask import Flask, jsonify
 from flask_cors import CORS
-
 from sqlalchemy.orm import Session
 
 import database
 from database import db_session
-from models import CoinValue, Trade, ScoutHistory
+from models import CoinValue, Trade, ScoutHistory, Coin
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -69,6 +68,19 @@ def scouting_history():
 def current_coin():
     coin = database.get_current_coin()
     return coin.symbol if coin else None
+
+
+@app.route('/api/coins')
+def coins():
+    session: Session
+    with db_session() as session:
+        current_coin = session.merge(database.get_current_coin())
+        coins: List[Coin] = session.query(Coin).all()
+        return jsonify([{
+            "symbol": coin.symbol,
+            "enabled": coin.enabled,
+            "is_current": coin == current_coin
+        } for coin in coins])
 
 
 if __name__ == '__main__':
