@@ -21,12 +21,7 @@ def value_history():
                                                                     CoinValue.datetime.asc()).all()
         coin_values = groupby(values, key=lambda cv: cv.coin)
 
-        return jsonify({coin.symbol: [
-            {"balance": entry.balance,
-             "usd_value": entry.usd_value,
-             "btc_value": entry.btc_value,
-             "datetime": entry.datetime} for entry in history
-        ] for coin, history in coin_values})
+        return jsonify({coin.symbol: [entry.info() for entry in history] for coin, history in coin_values})
 
 
 @app.route('/api/trade_history')
@@ -34,16 +29,7 @@ def trade_history():
     session: Session
     with db_session() as session:
         trades: List[Trade] = session.query(Trade).order_by(Trade.datetime.asc()).all()
-        return jsonify([
-            {"alt_coin": trade.alt_coin.symbol,
-             "crypto_coin": trade.crypto_coin.symbol,
-             "selling": trade.selling,
-             "state": trade.state.value,
-             "alt_starting_balance": trade.alt_starting_balance,
-             "alt_trade_amount": trade.alt_trade_amount,
-             "crypto_starting_balance": trade.crypto_starting_balance,
-             "crypto_trade_amount": trade.crypto_trade_amount,
-             "datetime": trade.datetime} for trade in trades])
+        return jsonify([trade.info() for trade in trades])
 
 
 @app.route('/api/scouting_history')
@@ -51,23 +37,13 @@ def scouting_history():
     session: Session
     with db_session() as session:
         scouts: List[ScoutHistory] = session.query(ScoutHistory).order_by(ScoutHistory.datetime.asc()).all()
-        return jsonify([
-            {
-                "from_coin": scout.pair.from_coin.symbol,
-                "to_coin": scout.pair.to_coin.symbol,
-                "current_ratio": scout.current_ratio,
-                "target_ratio": scout.target_ratio,
-                "current_coin_price": scout.current_coin_price,
-                "other_coin_price": scout.other_coin_price,
-                "datetime": scout.datetime,
-            } for scout in scouts
-        ])
+        return jsonify([scout.info() for scout in scouts])
 
 
 @app.route('/api/current_coin')
 def current_coin():
     coin = database.get_current_coin()
-    return coin.symbol if coin else None
+    return coin.info() if coin else None
 
 
 @app.route('/api/coins')
@@ -77,8 +53,7 @@ def coins():
         current_coin = session.merge(database.get_current_coin())
         coins: List[Coin] = session.query(Coin).all()
         return jsonify([{
-            "symbol": coin.symbol,
-            "enabled": coin.enabled,
+            **coin.info(),
             "is_current": coin == current_coin
         } for coin in coins])
 

@@ -41,3 +41,14 @@ class Trade(Base):
         self.crypto_coin = crypto_coin
         self.state = TradeState.STARTING
         self.selling = selling
+
+    def info(self):
+        return {"alt_coin": self.alt_coin.info(),
+                "crypto_coin": self.crypto_coin.info(),
+                "selling": self.selling,
+                "state": self.state.value,
+                "alt_starting_balance": self.alt_starting_balance,
+                "alt_trade_amount": self.alt_trade_amount,
+                "crypto_starting_balance": self.crypto_starting_balance,
+                "crypto_trade_amount": self.crypto_trade_amount,
+                "datetime": self.datetime}

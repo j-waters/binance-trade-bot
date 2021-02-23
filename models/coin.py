@@ -21,3 +21,7 @@ class Coin(Base):
 
     def __repr__(self):
         return f"<{self.symbol}>"
+
+    def info(self):
+        return {"symbol": self.symbol,
+                "enabled": self.enabled}

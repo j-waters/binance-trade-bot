@@ -1,4 +1,5 @@
 import datetime
+
 from sqlalchemy import Column, String, ForeignKey, DateTime, Integer
 from sqlalchemy.orm import relationship
 
@@ -15,3 +16,6 @@ class CurrentCoin(Base):
 
     def __init__(self, coin: Coin):
         self.coin = coin
+
+    def info(self):
+        return {"datetime": self.datetime, "coin": self.coin.info()}

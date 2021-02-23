@@ -60,3 +60,9 @@ class CoinValue(Base):
     @btc_value.expression
     def btc_value(cls):
         return cls.balance * cls.btc_price
+
+    def info(self):
+        return {"balance": self.balance,
+                "usd_value": self.usd_value,
+                "btc_value": self.btc_value,
+                "datetime": self.datetime}
