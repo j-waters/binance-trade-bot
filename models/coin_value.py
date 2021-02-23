@@ -65,4 +65,4 @@ class CoinValue(Base):
         return {"balance": self.balance,
                 "usd_value": self.usd_value,
                 "btc_value": self.btc_value,
-                "datetime": self.datetime}
+                "datetime": self.datetime.isoformat()}

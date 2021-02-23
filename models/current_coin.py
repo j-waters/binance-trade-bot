@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 from sqlalchemy import Column, String, ForeignKey, DateTime, Integer
 from sqlalchemy.orm import relationship
@@ -12,10 +12,11 @@ class CurrentCoin(Base):
     id = Column(Integer, primary_key=True)
     coin_id = Column(String, ForeignKey('coins.symbol'))
     coin = relationship("Coin")
-    datetime = Column(DateTime, default=datetime.datetime.utcnow)
+    datetime = Column(DateTime)
 
     def __init__(self, coin: Coin):
         self.coin = coin
+        self.datetime = datetime.utcnow()
 
     def info(self):
-        return {"datetime": self.datetime, "coin": self.coin.info()}
+        return {"datetime": self.datetime.isoformat(), "coin": self.coin.info()}

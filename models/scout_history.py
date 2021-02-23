@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float
 from sqlalchemy.ext.hybrid import hybrid_property
@@ -20,13 +20,14 @@ class ScoutHistory(Base):
     current_coin_price = Column(Float)
     other_coin_price = Column(Float)
 
-    datetime = Column(DateTime, default=datetime.datetime.utcnow)
+    datetime = Column(DateTime)
 
     def __init__(self, pair: Pair, target_ratio: float, current_coin_price: float, other_coin_price: float):
         self.pair = pair
         self.target_ratio = target_ratio
         self.current_coin_price = current_coin_price
         self.other_coin_price = other_coin_price
+        self.datetime = datetime.utcnow()
 
     @hybrid_property
     def current_ratio(self):
@@ -40,5 +41,5 @@ class ScoutHistory(Base):
                 "target_ratio": self.target_ratio,
                 "current_coin_price": self.current_coin_price,
                 "other_coin_price": self.other_coin_price,
-                "datetime": self.datetime,
+                "datetime": self.datetime.isoformat(),
             }

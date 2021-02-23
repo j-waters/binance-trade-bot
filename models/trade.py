@@ -1,5 +1,5 @@
-import datetime
 import enum
+from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Float, Enum, Boolean
 from sqlalchemy.orm import relationship
@@ -34,13 +34,14 @@ class Trade(Base):
     crypto_starting_balance = Column(Float)
     crypto_trade_amount = Column(Float)
 
-    datetime = Column(DateTime, default=datetime.datetime.utcnow)
+    datetime = Column(DateTime)
 
     def __init__(self, alt_coin: Coin, crypto_coin: Coin, selling: bool):
         self.alt_coin = alt_coin
         self.crypto_coin = crypto_coin
         self.state = TradeState.STARTING
         self.selling = selling
+        self.datetime = datetime.utcnow()
 
     def info(self):
         return {"id": self.id,
@@ -52,4 +53,4 @@ class Trade(Base):
                 "alt_trade_amount": self.alt_trade_amount,
                 "crypto_starting_balance": self.crypto_starting_balance,
                 "crypto_trade_amount": self.crypto_trade_amount,
-                "datetime": self.datetime}
+                "datetime": self.datetime.isoformat()}
