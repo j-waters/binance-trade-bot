@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import database
 from database import db_session
-from models import CoinValue, Trade, ScoutHistory, Coin, Pair
+from models import CoinValue, Trade, ScoutHistory, Coin, Pair, CurrentCoin
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -49,6 +49,14 @@ def scouting_history():
 def current_coin():
     coin = database.get_current_coin()
     return coin.info() if coin else None
+
+
+@app.route('/api/current_coin_history')
+def current_coin_history():
+    session: Session
+    with db_session() as session:
+        current_coins: List[CurrentCoin] = session.query(CurrentCoin).all()
+        return jsonify([cc.info() for cc in current_coins])
 
 
 @app.route('/api/coins')
