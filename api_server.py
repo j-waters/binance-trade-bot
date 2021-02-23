@@ -71,6 +71,14 @@ def coins():
         } for coin in coins])
 
 
+@app.route('/api/pairs')
+def pairs():
+    session: Session
+    with db_session() as session:
+        all_pairs: List[Pair] = session.query(Pair).all()
+        return jsonify([pair.info() for pair in all_pairs])
+
+
 @socketio.on('update', namespace='/backend')
 def handle_my_custom_event(json):
     emit('update', json, namespace='/frontend', broadcast=True)
