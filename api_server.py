@@ -1,9 +1,11 @@
+from datetime import datetime
 from itertools import groupby
-from typing import List
+from typing import List, Tuple
 
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 import database
@@ -27,6 +29,17 @@ def value_history():
         return jsonify({coin.symbol: [entry.info() for entry in history] for coin, history in coin_values})
 
 
+@app.route('/api/total_value_history')
+def total_value_history():
+    session: Session
+    with db_session() as session:
+        total_values: List[Tuple[datetime, float, float]] = session.query(CoinValue.datetime,
+                                                                          func.sum(CoinValue.btc_value),
+                                                                          func.sum(CoinValue.usd_value)).group_by(
+            CoinValue.datetime).all()
+        return jsonify([{"datetime": tv[0], "btc": tv[1], "usd": tv[2]} for tv in total_values])
+
+
 @app.route('/api/trade_history')
 def trade_history():
     session: Session
@@ -41,7 +54,8 @@ def scouting_history():
     coin = current_coin.symbol if current_coin is not None else None
     session: Session
     with db_session() as session:
-        scouts: List[ScoutHistory] = session.query(ScoutHistory).join(ScoutHistory.pair).filter(Pair.from_coin_id == coin).order_by(ScoutHistory.datetime.asc()).all()
+        scouts: List[ScoutHistory] = session.query(ScoutHistory).join(ScoutHistory.pair).filter(
+            Pair.from_coin_id == coin).order_by(ScoutHistory.datetime.asc()).all()
         return jsonify([scout.info() for scout in scouts])
 
 
