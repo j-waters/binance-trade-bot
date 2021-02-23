@@ -210,6 +210,13 @@ class TradeLog:
             send_update(self.trade)
 
 
+def prune_scout_history(hours: float):
+    time_diff = datetime.now() - timedelta(hours=hours)
+    session: Session
+    with db_session() as session:
+        session.query(ScoutHistory).filter(ScoutHistory.datetime < time_diff).delete()
+
+
 class TradeLog:
     def __init__(self, from_coin: Coin, to_coin: Coin, selling: bool):
         session: Session
