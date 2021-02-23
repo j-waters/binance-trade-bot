@@ -17,7 +17,8 @@ from binance.exceptions import BinanceAPIException
 from sqlalchemy.orm import Session
 
 from database import set_coins, set_current_coin, get_current_coin, get_pairs_from, \
-    db_session, create_database, get_pair, log_scout, TradeLog, CoinValue, prune_scout_history, prune_value_history
+    db_session, create_database, get_pair, log_scout, TradeLog, CoinValue, prune_scout_history, prune_value_history, \
+    send_update
 from models import Coin, Pair
 from scheduler import SafeScheduler
 
@@ -465,7 +466,9 @@ def update_values(client: Client):
                 continue
             usd_value = get_market_ticker_price_from_list(all_ticker_values, coin + "USDT")
             btc_value = get_market_ticker_price_from_list(all_ticker_values, coin + "BTC")
-            session.add(CoinValue(coin, balance, usd_value, btc_value, datetime=now))
+            cv = CoinValue(coin, balance, usd_value, btc_value, datetime=now)
+            session.add(cv)
+            send_update(cv)
 
 
 def migrate_old_state():

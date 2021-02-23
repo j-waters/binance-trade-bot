@@ -1,7 +1,10 @@
+import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from typing import List, Union, Optional
 
+from socketio import Client
+from socketio.exceptions import ConnectionError
 from sqlalchemy import create_engine, func
 from sqlalchemy.orm import sessionmaker, scoped_session, Session
 
@@ -11,6 +14,21 @@ engine = create_engine("sqlite:///data/crypto_trading.db")
 
 SessionMaker = sessionmaker(bind=engine)
 SessionMaker()
+
+socketio_client = Client()
+
+
+def socketio_connect():
+    if socketio_client.connected and socketio_client.namespaces:
+        return True
+    try:
+        if not socketio_client.connected:
+            socketio_client.connect('http://api:5123', namespaces=["/backend"])
+        while not socketio_client.connected or not socketio_client.namespaces:
+            time.sleep(0.1)
+        return True
+    except ConnectionError:
+        return False
 
 
 @contextmanager
@@ -72,7 +90,9 @@ def set_current_coin(coin: Union[Coin, str]):
     with db_session() as session:
         if type(coin) == Coin:
             coin = session.merge(coin)
-        session.add(CurrentCoin(coin))
+        cc = CurrentCoin(coin)
+        session.add(cc)
+        send_update(cc)
 
 
 def get_current_coin() -> Optional[Coin]:
@@ -110,6 +130,7 @@ def log_scout(pair: Pair, target_ratio: float, current_coin_price: float, other_
         pair = session.merge(pair)
         sh = ScoutHistory(pair, target_ratio, current_coin_price, other_coin_price)
         session.add(sh)
+        send_update(sh)
 
 
 def prune_scout_history(hours: float):
@@ -166,6 +187,9 @@ class TradeLog:
             to_coin = session.merge(to_coin)
             self.trade = Trade(from_coin, to_coin, selling)
             session.add(self.trade)
+            # Flush so that SQLAlchemy fills in the id column
+            session.flush()
+            send_update(self.trade)
 
     def set_ordered(self, alt_starting_balance, crypto_starting_balance, alt_trade_amount):
         session: Session
@@ -175,6 +199,7 @@ class TradeLog:
             trade.alt_trade_amount = alt_trade_amount
             trade.crypto_starting_balance = crypto_starting_balance
             trade.state = TradeState.ORDERED
+            send_update(self.trade)
 
     def set_complete(self, crypto_trade_amount):
         session: Session
@@ -182,10 +207,21 @@ class TradeLog:
             trade: Trade = session.merge(self.trade)
             trade.crypto_trade_amount = crypto_trade_amount
             trade.state = TradeState.COMPLETE
+            send_update(self.trade)
 
 
 def create_database():
     Base.metadata.create_all(engine)
+
+
+def send_update(model):
+    if not socketio_connect():
+        return
+
+    socketio_client.emit('update', {
+        "table": model.__tablename__,
+        "data": model.info()
+    }, namespace="/backend")
 
 
 if __name__ == '__main__':

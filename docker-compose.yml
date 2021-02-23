@@ -18,8 +18,8 @@ services:
     volumes:
       - ./data:/app/data
     ports:
-      - 5123:8000
-    command: gunicorn api_server:app -w 1 --threads 1 -b 0.0.0.0:8000
+      - 5123:5123
+    command: gunicorn api_server:app -k eventlet -w 1 --threads 1 -b 0.0.0.0:5123
 
   sqlitebrowser:
     image: ghcr.io/linuxserver/sqlitebrowser

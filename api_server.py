@@ -3,6 +3,7 @@ from typing import List
 
 from flask import Flask, jsonify
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from sqlalchemy.orm import Session
 
 import database
@@ -11,6 +12,8 @@ from models import CoinValue, Trade, ScoutHistory, Coin
 
 app = Flask(__name__)
 cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 
 @app.route('/api/value_history')
@@ -58,5 +61,10 @@ def coins():
         } for coin in coins])
 
 
+@socketio.on('update', namespace='/backend')
+def handle_my_custom_event(json):
+    emit('update', json, namespace='/frontend', broadcast=True)
+
+
 if __name__ == '__main__':
-    app.run(debug=True, port=5123)
+    socketio.run(app, debug=True, port=5123)

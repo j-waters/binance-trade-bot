@@ -43,7 +43,8 @@ class Trade(Base):
         self.selling = selling
 
     def info(self):
-        return {"alt_coin": self.alt_coin.info(),
+        return {"id": self.id,
+                "alt_coin": self.alt_coin.info(),
                 "crypto_coin": self.crypto_coin.info(),
                 "selling": self.selling,
                 "state": self.state.value,
