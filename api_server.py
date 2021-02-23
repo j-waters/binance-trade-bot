@@ -18,14 +18,19 @@ cors = CORS(app, resources={r"/api/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 
+@app.route('/api/value_history/<coin>')
 @app.route('/api/value_history')
-def value_history():
+def value_history(coin: str = None):
     session: Session
     with db_session() as session:
-        values: List[CoinValue] = session.query(CoinValue).order_by(CoinValue.coin_id.asc(),
-                                                                    CoinValue.datetime.asc()).all()
-        coin_values = groupby(values, key=lambda cv: cv.coin)
+        values = session.query(CoinValue).order_by(CoinValue.coin_id.asc(),
+                                                                    CoinValue.datetime.asc())
 
+        if coin:
+            values: List[CoinValue] = values.filter(CoinValue.coin_id == coin).all()
+            return jsonify([entry.info() for entry in values])
+
+        coin_values = groupby(values.all(), key=lambda cv: cv.coin)
         return jsonify({coin.symbol: [entry.info() for entry in history] for coin, history in coin_values})
 
 
