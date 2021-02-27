@@ -1,7 +1,7 @@
 import time
 from contextlib import contextmanager
 from datetime import datetime, timedelta
-from typing import List, Union, Optional
+from typing import List, Union
 
 from socketio import Client
 from socketio.exceptions import ConnectionError
@@ -74,34 +74,23 @@ def set_coins(symbols: List[str]):
                         session.add(Pair(from_coin, to_coin))
 
 
+def get_coins(only_enabled=True) -> List[Coin]:
+    session: Session
+    with db_session() as session:
+        if only_enabled:
+            coins = session.query(Coin).filter(Coin.enabled).all()
+        else:
+            coins = session.query(Coin).all()
+        session.expunge_all()
+        return coins
+
+
 def get_coin(coin: Union[Coin, str]) -> Coin:
     if type(coin) == Coin:
         return coin
     session: Session
     with db_session() as session:
         coin = session.query(Coin).get(coin)
-        session.expunge(coin)
-        return coin
-
-
-def set_current_coin(coin: Union[Coin, str]):
-    coin = get_coin(coin)
-    session: Session
-    with db_session() as session:
-        if type(coin) == Coin:
-            coin = session.merge(coin)
-        cc = CurrentCoin(coin)
-        session.add(cc)
-        send_update(cc)
-
-
-def get_current_coin() -> Optional[Coin]:
-    session: Session
-    with db_session() as session:
-        current_coin = session.query(CurrentCoin).order_by(CurrentCoin.datetime.desc()).first()
-        if current_coin is None:
-            return None
-        coin = current_coin.coin
         session.expunge(coin)
         return coin
 

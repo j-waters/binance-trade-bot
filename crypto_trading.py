@@ -3,18 +3,18 @@ import configparser
 import datetime
 import json
 import os
-import random
 import time
 from typing import List, Dict
 
-from binance_api_manager import BinanceAPIManager
 from sqlalchemy.orm import Session
 
-from database import set_coins, set_current_coin, get_current_coin, get_pairs_from, \
-    db_session, create_database, get_pair, log_scout, CoinValue, prune_scout_history, prune_value_history, send_update
+from binance_api_manager import BinanceAPIManager
+from database import set_coins, get_pairs_from, \
+    db_session, create_database, get_pair, log_scout, CoinValue, prune_scout_history, prune_value_history, send_update, \
+    get_coins
+from logger import Logger
 from models import Coin, Pair
 from scheduler import SafeScheduler
-from logger import Logger
 
 # Config consts
 CFG_FL_NAME = 'user.cfg'
@@ -79,16 +79,13 @@ def transaction_through_tether(client: BinanceAPIManager, pair: Pair, all_ticker
     while result is None:
         result = client.buy_alt(pair.to_coin, BRIDGE, all_tickers)
 
-    set_current_coin(pair.to_coin)
-    update_trade_threshold(client, float(result[u'price']), all_tickers)
+    update_trade_threshold(client, pair.to_coin, float(result[u'price']), all_tickers)
 
 
-def update_trade_threshold(client: BinanceAPIManager, current_coin_price:float, all_tickers):
+def update_trade_threshold(client: BinanceAPIManager, current_coin: Coin, current_coin_price:float, all_tickers):
     '''
     Update all the coins with the threshold of buying the current held coin
     '''
-
-    current_coin = get_current_coin()
 
     if current_coin_price is None:
         logger.info("Skipping update... current coin {0} not found".format(current_coin + BRIDGE))
@@ -140,43 +137,47 @@ def scout(client: BinanceAPIManager, transaction_fee=0.001, multiplier=5):
 
     all_tickers = client.get_all_market_tickers()
 
-    current_coin = get_current_coin()
+    for current_coin in get_coins():
+        current_coin_balance = client.get_currency_balance(current_coin.symbol)
+        current_coin_price = get_market_ticker_price_from_list(all_tickers, current_coin + BRIDGE)
 
-    current_coin_price = get_market_ticker_price_from_list(all_tickers, current_coin + BRIDGE)
+        if current_coin_price is None:
+            logger.info("Skipping scouting... current coin {0} not found".format(current_coin + BRIDGE))
+            return
 
-    if current_coin_price is None:
-        logger.info("Skipping scouting... current coin {0} not found".format(current_coin + BRIDGE))
-        return
-
-    ratio_dict: Dict[Pair, float] = {}
-
-    for pair in get_pairs_from(current_coin):
-        if not pair.to_coin.enabled:
-            continue
-        optional_coin_price = get_market_ticker_price_from_list(all_tickers, pair.to_coin + BRIDGE)
-
-        if optional_coin_price is None:
-            logger.info("Skipping scouting... optional coin {0} not found".format(pair.to_coin + BRIDGE))
+        if current_coin_price * current_coin_balance < client.get_min_notional(current_coin.symbol, BRIDGE.symbol):
+            # See https://www.binance.com/en/trade-rule - 10 is the minimum order size for most bridge coins
             continue
 
-        log_scout(pair, pair.ratio, current_coin_price, optional_coin_price)
+        ratio_dict: Dict[Pair, float] = {}
 
-        # Obtain (current coin)/(optional coin)
-        coin_opt_coin_ratio = current_coin_price / optional_coin_price
+        for pair in get_pairs_from(current_coin):
+            if not pair.to_coin.enabled:
+                continue
+            optional_coin_price = get_market_ticker_price_from_list(all_tickers, pair.to_coin + BRIDGE)
 
-        # save ratio so we can pick the best option, not necessarily the first
-        ratio_dict[pair] = (coin_opt_coin_ratio - transaction_fee * multiplier * coin_opt_coin_ratio) - pair.ratio
+            if optional_coin_price is None:
+                logger.info("Skipping scouting... optional coin {0} not found".format(pair.to_coin + BRIDGE))
+                continue
 
-    # keep only ratios bigger than zero
-    ratio_dict = {k: v for k, v in ratio_dict.items() if v > 0}
+            log_scout(pair, pair.ratio, current_coin_price, optional_coin_price)
 
-    # if we have any viable options, pick the one with the biggest ratio
-    if ratio_dict:
-        best_pair = max(ratio_dict, key=ratio_dict.get)
-        logger.info('Will be jumping from {0} to {1}'.format(
-            current_coin, best_pair.to_coin_id))
-        transaction_through_tether(
-            client, best_pair, all_tickers)
+            # Obtain (current coin)/(optional coin)
+            coin_opt_coin_ratio = current_coin_price / optional_coin_price
+
+            # save ratio so we can pick the best option, not necessarily the first
+            ratio_dict[pair] = (coin_opt_coin_ratio - transaction_fee * multiplier * coin_opt_coin_ratio) - pair.ratio
+
+        # keep only ratios bigger than zero
+        ratio_dict = {k: v for k, v in ratio_dict.items() if v > 0}
+
+        # if we have any viable options, pick the one with the biggest ratio
+        if ratio_dict:
+            best_pair = max(ratio_dict, key=ratio_dict.get)
+            logger.info('Will be jumping from {0} to {1}'.format(
+                current_coin, best_pair.to_coin_id))
+            transaction_through_tether(
+                client, best_pair, all_tickers)
 
 
 def update_values(client: BinanceAPIManager):
@@ -200,10 +201,6 @@ def update_values(client: BinanceAPIManager):
 
 def migrate_old_state():
     if os.path.isfile('.current_coin'):
-        with open('.current_coin', 'r') as f:
-            coin = f.read().strip()
-            logger.info(f".current_coin file found, loading current coin {coin}")
-            set_current_coin(coin)
         os.rename('.current_coin', '.current_coin.old')
         logger.info(f".current_coin renamed to .current_coin.old - You can now delete this file")
 
@@ -240,24 +237,6 @@ def main():
     migrate_old_state()
 
     initialize_trade_thresholds(client)
-
-    if get_current_coin() is None:
-        current_coin_symbol = config.get(USER_CFG_SECTION, 'current_coin')
-        if not current_coin_symbol:
-            current_coin_symbol = random.choice(supported_coin_list)
-
-        logger.info("Setting initial coin to {0}".format(current_coin_symbol))
-
-        if current_coin_symbol not in supported_coin_list:
-            exit("***\nERROR!\nSince there is no backup file, a proper coin name must be provided at init\n***")
-        set_current_coin(current_coin_symbol)
-
-        if config.get(USER_CFG_SECTION, 'current_coin') == '':
-            current_coin = get_current_coin()
-            logger.info("Purchasing {0} to begin trading".format(current_coin))
-            all_tickers = client.get_all_market_tickers()
-            client.buy_alt(current_coin, BRIDGE, all_tickers)
-            logger.info("Ready to start trading")
 
     schedule = SafeScheduler(logger)
     schedule.every(SCOUT_SLEEP_TIME).seconds.do(scout,
