@@ -86,7 +86,9 @@ If you are interested in running a Telegram bot, more information can be found a
 
 ### Run
 
-`python -m binance_trade_bot`
+```shell
+python -m binance_trade_bot
+```
 
 ### Docker
 
@@ -100,6 +102,32 @@ if you only want to start the sqlitebrowser
 
 ```shell
 docker-compose up -d sqlitebrowser
+```
+
+## Backtesting
+
+You can test the bot on historic data to see how it performs
+
+```shell
+python -m binance_trade_bot backtest
+```
+
+```shell
+Usage: binance_trade_bot backtest [OPTIONS]
+
+Options:
+  --start-date TEXT      Start date  [default: 2021-01-01]
+  --end-date TEXT        Start date  [default: <today>]
+  --interval INTEGER     Number of minutes to move forward each iteration
+                         [default: 1]
+
+  --start-value INTEGER  Starting balance of bridge coin  [default: 100]
+  --start-coin TEXT      Start coin symbol, will pick first coin if not
+                         supplied
+
+  --fetch-data           Don't backtest, just download historic data
+  --help                 Show this message and exit.
+
 ```
 
 ## Support the Project

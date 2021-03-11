@@ -9,3 +9,5 @@ flask-socketio
 eventlet
 python-socketio[client]
 diskcache
+click
+click_default_group
