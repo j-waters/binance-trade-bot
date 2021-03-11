@@ -9,7 +9,6 @@ from .config import Config
 from .database import Database
 from .logger import Logger
 from .models import Pair, Coin, CoinValue
-from .utils import get_market_ticker_price_from_list
 
 
 class AutoTrader:
@@ -47,7 +46,7 @@ class AutoTrader:
         session: Session
         with self.db.db_session() as session:
             for pair in session.query(Pair).filter(Pair.to_coin == current_coin):
-                from_coin_price = get_market_ticker_price_from_list(all_tickers, pair.from_coin + self.config.BRIDGE)
+                from_coin_price = all_tickers.get_price(pair.from_coin + self.config.BRIDGE)
 
                 if from_coin_price is None:
                     self.logger.info("Skipping update for coin {0} not found".format(pair.from_coin + self.config.BRIDGE))
@@ -68,12 +67,12 @@ class AutoTrader:
                     continue
                 self.logger.info("Initializing {0} vs {1}".format(pair.from_coin, pair.to_coin))
 
-                from_coin_price = get_market_ticker_price_from_list(all_tickers, pair.from_coin + self.config.BRIDGE)
+                from_coin_price = all_tickers.get_price(pair.from_coin + self.config.BRIDGE)
                 if from_coin_price is None:
                     self.logger.info("Skipping initializing {0}, symbol not found".format(pair.from_coin + self.config.BRIDGE))
                     continue
 
-                to_coin_price = get_market_ticker_price_from_list(all_tickers, pair.to_coin + self.config.BRIDGE)
+                to_coin_price = all_tickers.get_price(pair.to_coin + self.config.BRIDGE)
                 if to_coin_price is None:
                     self.logger.info("Skipping initializing {0}, symbol not found".format(pair.to_coin + self.config.BRIDGE))
                     continue
@@ -115,7 +114,7 @@ class AutoTrader:
             datetime.now()) + " - CONSOLE - INFO - I am scouting the best trades. Current coin: {0} ".format(
             current_coin + self.config.BRIDGE), end='\r')
 
-        current_coin_price = get_market_ticker_price_from_list(all_tickers, current_coin + self.config.BRIDGE)
+        current_coin_price = all_tickers.get_price(current_coin + self.config.BRIDGE)
 
         if current_coin_price is None:
             self.logger.info("Skipping scouting... current coin {0} not found".format(current_coin + self.config.BRIDGE))
@@ -126,7 +125,7 @@ class AutoTrader:
         for pair in self.db.get_pairs_from(current_coin):
             if not pair.to_coin.enabled:
                 continue
-            optional_coin_price = get_market_ticker_price_from_list(all_tickers, pair.to_coin + self.config.BRIDGE)
+            optional_coin_price = all_tickers.get_price(pair.to_coin + self.config.BRIDGE)
 
             if optional_coin_price is None:
                 self.logger.info("Skipping scouting... optional coin {0} not found".format(pair.to_coin + self.config.BRIDGE))
@@ -165,8 +164,8 @@ class AutoTrader:
                 balance = self.manager.get_currency_balance(coin.symbol)
                 if balance == 0:
                     continue
-                usd_value = get_market_ticker_price_from_list(all_ticker_values, coin + "USDT")
-                btc_value = get_market_ticker_price_from_list(all_ticker_values, coin + "BTC")
+                usd_value = all_ticker_values.get_price(coin + "USDT")
+                btc_value = all_ticker_values.get_price(coin + "BTC")
                 cv = CoinValue(coin, balance, usd_value, btc_value, datetime=now)
                 session.add(cv)
                 self.db.send_update(cv)
